@@ -1,17 +1,202 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-body {
-  background-color: #0f0f0f;
-  color: #f4f4f5;
+* {
+  box-sizing: border-box;
 }
 
-.react-flow__node {
-  border-radius: 12px;
+body {
+  margin: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: 
+    radial-gradient(circle at 25% 75%, rgba(168, 85, 247, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 75% 25%, rgba(139, 92, 246, 0.06) 0%, transparent 50%),
+    linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
+  color: #e2e8f0;
+  min-height: 100vh;
+  overscroll-behavior: none;
+}
+
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 5px #2563eb40, 0 0 10px #2563eb20; }
+  50% { box-shadow: 0 0 20px #2563eb60, 0 0 40px #2563eb40; }
+}
+
+@keyframes bounce-gentle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-8px) rotate(1deg); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -468px 0; }
+  100% { background-position: 468px 0; }
+}
+
+@keyframes rainbow-shift {
+  0% { filter: hue-rotate(0deg); }
+  100% { filter: hue-rotate(360deg); }
+}
+
+@keyframes particle-float {
+  0%, 100% { transform: translateY(0px) rotate(0deg) scale(1); opacity: 0.6; }
+  25% { transform: translateY(-15px) rotate(90deg) scale(1.1); opacity: 1; }
+  50% { transform: translateY(-25px) rotate(180deg) scale(1.05); opacity: 0.8; }
+  75% { transform: translateY(-10px) rotate(270deg) scale(1.15); opacity: 0.9; }
+}
+
+@keyframes tilt-3d {
+  0% { transform: perspective(1000px) rotateX(0deg) rotateY(0deg) rotateZ(0deg); }
+  100% { transform: perspective(1000px) rotateX(3deg) rotateY(5deg) rotateZ(2deg); }
+}
+
+@keyframes wave {
+  0%, 100% { transform: translateX(0%) skew(0deg, 0deg); }
+  50% { transform: translateX(8%) skew(0.5deg, 1deg); }
+}
+
+.node-hover {
+  animation: glow 1.5s ease-in-out infinite alternate;
+}
+
+.button-shimmer {
+  background-size: 200% 100%;
+  animation: shimmer 2s linear infinite;
+}
+
+.react-flow__node:hover {
+  animation: rainbow-shift 1s ease-in-out, glow 0.5s ease-in-out;
+  transform: scale(1.05);
+  z-index: 10;
+}
+
+.react-flow__edge path {
+  stroke: linear-gradient(90deg, #A855F7, #C084FC, #E879F9);
+  stroke-width: 2;
+  stroke-linecap: round;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  filter: drop-shadow(0 0 8px rgba(168, 85, 247, 0.4));
+}
+
+.react-flow__edge:hover path {
+  stroke-width: 3;
+  filter: drop-shadow(0 0 16px rgba(168, 85, 247, 0.6));
+  stroke-dasharray: 5 5;
+  animation: krea-edge-dash 1.5s linear infinite;
+}
+
+.react-flow__edge:hover path {
+  stroke-width: 4;
+  filter: drop-shadow(0 0 10px currentColor50);
+  animation: rainbow-shift 2s linear infinite;
 }
 
 .react-flow__handle {
-  width: 10px;
-  height: 10px;
-  background-color: #3b82f6;
-  border: 2px solid #0f0f0f;
+  width: 14px;
+  height: 14px;
+  background: conic-gradient(from 0deg, #2563eb, #8b5cf6, #ec4899, #10b981, #f59e0b, #2563eb);
+  border: 2px solid rgba(255,255,255,0.2);
+  border-radius: 50%;
+  box-shadow: 0 0 12px rgba(37,99,235,0.6), inset 0 0 4px rgba(255,255,255,0.3);
+  animation: bounce-gentle 2s ease-in-out infinite;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: linear-gradient(180deg, #0a0a0a, #1a1a1a);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: conic-gradient(from 0deg, #2563eb, #8b5cf6, #ec4899, #10b981);
+  border-radius: 4px;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: conic-gradient(from 0deg, #1d4ed8, #7c3aed, #be185d, #059669);
+  animation: spin-slow 1s linear infinite;
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.rainbow-text {
+  background: linear-gradient(45deg, #ff0080, #8000ff, #00ff80, #0080ff, #ff8000, #ff0080);
+  background-size: 400% 400%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: rainbow-shift 3s ease infinite;
+}
+
+/* Krea Node Running Pulse */
+@keyframes krea-running {
+  0%, 100% { 
+    box-shadow: 0 0 10px rgba(168, 85, 247, 0.5), 
+                0 0 20px rgba(168, 85, 247, 0.3), 
+                inset 0 0 10px rgba(168, 85, 247, 0.2);
+    transform: scale(1);
+  }
+  50% { 
+    box-shadow: 0 0 30px rgba(168, 85, 247, 0.8), 
+                0 0 50px rgba(168, 85, 247, 0.5), 
+                inset 0 0 20px rgba(168, 85, 247, 0.4);
+    transform: scale(1.03);
+  }
+}
+
+.react-flow__node.running {
+  animation: krea-running 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  z-index: 1000;
+  border: 2px solid rgba(168, 85, 247, 0.6) !important;
+}
+
+@keyframes krea-edge-flow {
+  0% { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: -10; }
+}
+
+.react-flow__edge path[stroke-dasharray] {
+  stroke-dasharray: 10 5;
+  animation: krea-edge-flow 0.6s linear infinite;
+}
+
+.scrollbar-thin {
+  scrollbar-width: thin;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: rgba(15, 15, 35, 0.5);
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: linear-gradient(45deg, #A855F7, #C084FC);
+  border-radius: 3px;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(45deg, #9333EA, #A855F7);
+}
+
+.neon-glow {
+  box-shadow: 0 0 5px currentColor, 0 0 10px currentColor, 0 0 15px currentColor;
 }
