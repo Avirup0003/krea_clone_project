@@ -12,8 +12,13 @@ const runNodeSchema = z.object({
   inputs: z.array(z.any()).optional(),
 });
 
-export async function POST(req: NextRequest, { params }: { params: { nodeType: string } }) {
+
+export async function POST(req: NextRequest, context: { params: Promise<{ nodeType: string }> }) {
   try {
+   
+    const params = await context.params;
+    const { nodeType } = params;
+
     const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
