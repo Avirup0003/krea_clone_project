@@ -12,10 +12,8 @@ const runNodeSchema = z.object({
   inputs: z.array(z.any()).optional(),
 });
 
-
 export async function POST(req: NextRequest, context: { params: Promise<{ nodeType: string }> }) {
   try {
-   
     const params = await context.params;
     const { nodeType } = params;
 
@@ -26,12 +24,10 @@ export async function POST(req: NextRequest, context: { params: Promise<{ nodeTy
 
     const body = runNodeSchema.parse(await req.json());
 
-    // Passthrough for text
     if (body.nodeType === 'textNode') {
       return NextResponse.json({ output: { text: body.data.text } });
     }
 
-    // Dispatch to specific Trigger event
     const eventName = `run.${body.nodeType.replace('Node', '')}`;
     const result = await typedClient.sendEvent({
       name: eventName,
