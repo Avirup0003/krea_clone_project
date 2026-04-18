@@ -59,7 +59,6 @@ export default function Header() {
       };
       reader.readAsText(file);
     }
-    // Reset input so the same file can be uploaded again if needed
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -69,11 +68,10 @@ export default function Header() {
         <div className="bg-[#2563eb] p-1.5 rounded-lg">
             <Workflow className="h-4 w-4 text-white" />
         </div>
-        <span className="font-semibold text-[15px] text-white">Node Editor</span>
+        <span className="font-semibold text-[15px] text-white">NextFlow</span>
       </div>
       
       <div className="flex items-center gap-3">
-        {/* Hidden file input for importing JSON */}
         <input 
           type="file" 
           accept=".json" 
