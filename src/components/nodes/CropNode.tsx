@@ -1,86 +1,140 @@
 import { Handle, Position } from "reactflow";
 import { useStore } from "@/store/useStore";
-import { Crop, Play } from "lucide-react";
+import { Crop, Loader2, AlertCircle } from "lucide-react";
+import { useState } from "react";
 
 export default function CropNode({ id, data }: { id: string; data: any }) {
   const updateNodeData = useStore((state) => state.updateNodeData);
-  const { nodeStates, runNode } = useStore();
-  const isRunning = nodeStates[id]?.isRunning;
+  const getNodeInputs = useStore((state) => state.getNodeInputs);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const cropImageLocally = (imageUrl: string, x: number, y: number, w: number, h: number): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const sx = (x / 100) * img.width;
+        const sy = (y / 100) * img.height;
+        const sWidth = (w / 100) * img.width;
+        const sHeight = (h / 100) * img.height;
+
+        canvas.width = sWidth;
+        canvas.height = sHeight;
+
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, sWidth, sHeight);
+          resolve(canvas.toDataURL("image/jpeg"));
+        } else {
+          reject(new Error("Failed to process crop"));
+        }
+      };
+      
+      img.onerror = () => reject(new Error("Failed to load image"));
+      img.src = imageUrl;
+    });
+  };
+
+  const handleRun = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const inputs = getNodeInputs(id);
+      const imageUrl = inputs.find(input => typeof input === 'string' && (input.startsWith('blob:') || input.startsWith('data:')));
+
+      if (!imageUrl) {
+        throw new Error("No image connected.");
+      }
+
+      const x = typeof data.x === "number" ? data.x : 0;
+      const y = typeof data.y === "number" ? data.y : 0;
+      const w = typeof data.width === "number" ? data.width : 100;
+      const h = typeof data.height === "number" ? data.height : 100;
+
+      const croppedUrl = await cropImageLocally(imageUrl, x, y, w, h);
+
+      updateNodeData(id, { 
+        result: croppedUrl, 
+        output: croppedUrl 
+      });
+
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
-    <div className={`w-[300px] h-[240px] rounded-krea-lg border-2 border-slate-700/70 bg-gradient-to-b from-slate-900/80 to-slate-950/80 backdrop-blur-sm shadow-krea-glow-lg p-krea-4 transition-all duration-300 hover:shadow-krea-glow ${isRunning ? 'running' : ''}`}>
-      <div className="flex items-center gap-krea-2 mb-krea-3">
-        <Crop className="h-4 w-4 text-krea-400 drop-shadow-sm" />
-        <span className="font-semibold text-sm text-slate-200 tracking-tight">Crop Image</span>
+    <div className="w-[320px] bg-[#111111] border border-[#222222] rounded-2xl p-5 shadow-2xl">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="bg-[#1a1a1a] p-2 rounded-lg border border-[#333]">
+          <Crop className="h-5 w-5 text-[#0ea5e9]" />
+        </div>
+        <span className="font-semibold text-[15px] text-[#e5e5e5]">Crop Image</span>
       </div>
-      <div className="grid grid-cols-2 gap-krea-2 p-krea-2 bg-slate-900/50 rounded-krea">
-        <div>
-          <label className="text-xs text-slate-400 block mb-1 font-medium">X %</label>
+
+      <div className="flex flex-col gap-3">
+        <div className="grid grid-cols-2 gap-2">
           <input 
             type="number" 
-            min="0" max="100"
-            placeholder="0" 
-            className="w-full bg-slate-800 border border-slate-600 rounded text-xs text-slate-100 p-krea-1 focus:outline-none focus:ring-krea-500/50 focus:border-krea-400"
-            onChange={(e) => updateNodeData(id, { x: parseInt(e.target.value) || 0 })}
-            value={data.x || ''}
+            placeholder="X %" 
+            className="w-full bg-[#0a0a0a] border border-[#333] rounded-xl p-2.5 text-sm text-[#e5e5e5] focus:outline-none focus:border-[#0ea5e9] transition-colors"
+            value={data.x ?? ""}
+            onChange={(e) => updateNodeData(id, { x: e.target.value === "" ? undefined : Number(e.target.value) })}
           />
-        </div>
-        <div>
-          <label className="text-xs text-slate-400 block mb-1 font-medium">Y %</label>
           <input 
             type="number" 
-            min="0" max="100"
-            placeholder="0" 
-            className="w-full bg-slate-800 border border-slate-600 rounded text-xs text-slate-100 p-krea-1 focus:outline-none focus:ring-krea-500/50 focus:border-krea-400"
-            onChange={(e) => updateNodeData(id, { y: parseInt(e.target.value) || 0 })}
-            value={data.y || ''}
+            placeholder="Y %" 
+            className="w-full bg-[#0a0a0a] border border-[#333] rounded-xl p-2.5 text-sm text-[#e5e5e5] focus:outline-none focus:border-[#0ea5e9] transition-colors"
+            value={data.y ?? ""}
+            onChange={(e) => updateNodeData(id, { y: e.target.value === "" ? undefined : Number(e.target.value) })}
           />
-        </div>
-        <div>
-          <label className="text-xs text-slate-400 block mb-1 font-medium">Width %</label>
           <input 
             type="number" 
-            min="1" max="100"
-            placeholder="100" 
-            className="w-full bg-slate-800 border border-slate-600 rounded text-xs text-slate-100 p-krea-1 focus:outline-none focus:ring-krea-500/50 focus:border-krea-400"
-            onChange={(e) => updateNodeData(id, { width: parseInt(e.target.value) || 100 })}
-            value={data.width || ''}
+            placeholder="Width %" 
+            className="w-full bg-[#0a0a0a] border border-[#333] rounded-xl p-2.5 text-sm text-[#e5e5e5] focus:outline-none focus:border-[#0ea5e9] transition-colors"
+            value={data.width ?? ""}
+            onChange={(e) => updateNodeData(id, { width: e.target.value === "" ? undefined : Number(e.target.value) })}
           />
-        </div>
-        <div>
-          <label className="text-xs text-slate-400 block mb-1 font-medium">Height %</label>
           <input 
             type="number" 
-            min="1" max="100"
-            placeholder="100" 
-            className="w-full bg-slate-800 border border-slate-600 rounded text-xs text-slate-100 p-krea-1 focus:outline-none focus:ring-krea-500/50 focus:border-krea-400"
-            onChange={(e) => updateNodeData(id, { height: parseInt(e.target.value) || 100 })}
-            value={data.height || ''}
+            placeholder="Height %" 
+            className="w-full bg-[#0a0a0a] border border-[#333] rounded-xl p-2.5 text-sm text-[#e5e5e5] focus:outline-none focus:border-[#0ea5e9] transition-colors"
+            value={data.height ?? ""}
+            onChange={(e) => updateNodeData(id, { height: e.target.value === "" ? undefined : Number(e.target.value) })}
           />
         </div>
-      </div>
-      <button
-        onClick={() => runNode(id)}
-        disabled={isRunning}
-        className="mt-krea-3 w-full px-krea-3 py-krea-2 bg-gradient-to-r from-krea-600 to-krea-500 text-white rounded-krea font-semibold text-xs uppercase tracking-wider hover:from-krea-500 hover:to-krea-400 shadow-krea-glow transition-all duration-200 hover:shadow-krea-glow-lg hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
-      >
-        {isRunning ? (
-          <>
-            <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25" />
-              <path fill="currentColor" className="opacity-75" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
-            Cropping...
-          </>
-        ) : (
-          <>
-            <Play className="h-3 w-3" />
-            Crop Image
-          </>
+
+        <button
+          onClick={handleRun}
+          disabled={isLoading}
+          className="bg-[#e5e5e5] text-black hover:bg-white rounded-xl py-2.5 text-sm font-semibold flex justify-center items-center gap-2 transition-colors disabled:opacity-50 mt-1"
+        >
+          {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+          {isLoading ? "Cropping..." : "Run Crop"}
+        </button>
+
+        {error && (
+          <div className="mt-1 p-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-2 text-xs text-red-400">
+            <AlertCircle className="h-4 w-4 flex-shrink-0" />
+            <span>{error}</span>
+          </div>
         )}
-      </button>
-      <Handle type="target" position={Position.Left} id="input-image" className="opacity-0 group-hover:opacity-100" style={{ top: 40 }} />
-      <Handle type="source" position={Position.Right} id="output" className="opacity-0 group-hover:opacity-100" />
+
+        {data.result && (
+          <div className="mt-2 rounded-xl overflow-hidden border border-[#333]">
+            <img src={data.result} alt="Cropped" className="w-full h-auto" />
+          </div>
+        )}
+      </div>
+
+      <Handle type="target" position={Position.Left} id="input-image" className="w-3 h-3 bg-[#0ea5e9] border-2 border-[#111111]" />
+      <Handle type="source" position={Position.Right} id="output" className="w-3 h-3 bg-[#0ea5e9] border-2 border-[#111111]" />
     </div>
   );
 }

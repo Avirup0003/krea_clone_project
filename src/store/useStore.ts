@@ -6,7 +6,6 @@ import type {
 import { 
   applyNodeChanges, applyEdgeChanges, addEdge 
 } from "reactflow";
-import { useAuth } from "@clerk/nextjs"; // Client-side auth
 
 type NodeData = {
   label?: string;
@@ -15,13 +14,18 @@ type NodeData = {
   videoUrl?: string;
   prompt?: string;
   model?: string;
-  result?: string;
+  
+  // Update these two lines to allow null
+  result?: string | null;
+  error?: string | null; 
+  
   x?: number;
   y?: number;
   width?: number;
   height?: number;
   timestamp?: string;
   output?: any;
+  isRunning?: boolean;
 };
 
 type NodeState = {
@@ -59,7 +63,6 @@ type AppState = {
   
   runNode: (nodeId: string) => Promise<void>;
   
-  // Helpers (not in UI state)
   getNodeInputs: (nodeId: string) => any[];
   getConnectedNodes: (nodeId: string) => string[];
 };
@@ -84,7 +87,7 @@ export const useStore = create<AppState>((set, get) => ({
       ...connection, 
       animated: true, 
       type: "smoothstep",
-      style: { stroke: "#A855F7", strokeWidth: 2 }
+      style: { stroke: "#7c3aed", strokeWidth: 2 }
     }, get().edges),
   }),
   
@@ -108,7 +111,13 @@ export const useStore = create<AppState>((set, get) => ({
     nodeStates: { 
       ...get().nodeStates, 
       [id]: { ...get().nodeStates[id] || { isRunning: false }, isRunning: running } 
-    } 
+    },
+    nodes: get().nodes.map((node: Node<NodeData>) => {
+      if (node.id === id) {
+        node.data = { ...node.data, isRunning: running } as NodeData;
+      }
+      return node;
+    })
   }),
   
   setNodeOutput: (id, output) => set({ 
@@ -118,7 +127,7 @@ export const useStore = create<AppState>((set, get) => ({
     },
     nodes: get().nodes.map((node: Node<NodeData>) => {
       if (node.id === id) {
-        node.data!.output = output;
+        node.data = { ...node.data, output, result: output, isRunning: false } as NodeData;
       }
       return node;
     })
@@ -132,7 +141,7 @@ export const useStore = create<AppState>((set, get) => ({
         set({ workflows });
       }
     } catch (error) {
-      console.error('Failed to load workflows:', error);
+      console.error(error);
     }
   },
   
@@ -146,12 +155,9 @@ export const useStore = create<AppState>((set, get) => ({
       });
       if (res.ok) {
         await loadWorkflows();
-        console.log('Workflow saved!');
-      } else {
-        console.error('Save failed');
       }
     } catch (error) {
-      console.error('Save error:', error);
+      console.error(error);
     }
   },
   
@@ -163,7 +169,6 @@ export const useStore = create<AppState>((set, get) => ({
         edges: workflow.edges, 
         currentWorkflowId: id 
       });
-      console.log(`Loaded workflow: ${workflow.name}`);
     }
   },
   
@@ -180,39 +185,56 @@ export const useStore = create<AppState>((set, get) => ({
     get().setNodeRunning(nodeId, true);
     
     try {
-      const res = await fetch(`/api/run-node/${nodeId}`, {
+      const res = await fetch(`/api/run-workflow`, {
         method: 'POST',
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
-          nodeType: node!.type,
+          prompt: node.data.prompt || node.data.text || "Hello",
+          nodeType: node.type,
           data: node.data,
           inputs: get().getNodeInputs(nodeId)
         }),
       });
       
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        get().setNodeOutput(nodeId, `Error: ${errorData.error || res.statusText}`);
+        return;
+      }
       
       const result = await res.json();
-      get().setNodeOutput(nodeId, result.output);
-      console.log(`Node ${node.data.label || node.type} completed`);
+      const outputText = result.text || result.output || "Execution completed";
       
-      // Propagate
+      get().setNodeOutput(nodeId, outputText);
+      
       const connected = get().getConnectedNodes(nodeId);
       connected.forEach((nextId, index) => {
         setTimeout(() => get().runNode(nextId), (index + 1) * 800);
       });
-    } catch (error) {
-      get().setNodeRunning(nodeId, false);
-      console.error('Run failed:', error);
+    } catch (error: any) {
+      get().setNodeOutput(nodeId, `Error: ${error.message}`);
     }
   },
   
   getNodeInputs: (nodeId: string) => {
     const { nodes, edges } = get();
+    // Find all edges pointing IN to this node
     const incoming = edges.filter((e: Edge) => e.target === nodeId);
+    
     return incoming.map((e: Edge) => {
+      // Find the node that the edge is coming FROM
       const srcNode = nodes.find((n: Node<NodeData>) => n.id === e.source);
-      return srcNode?.data.output;
+      
+      if (!srcNode) return null;
+
+      // Smarter Fallback: If 'output' isn't explicitly set, smartly grab 
+      // whatever media or text the source node is currently holding.
+      return srcNode.data.output || 
+             srcNode.data.imageUrl || 
+             srcNode.data.videoUrl || 
+             srcNode.data.result || 
+             srcNode.data.text;
+             
     }).filter(Boolean);
   },
   

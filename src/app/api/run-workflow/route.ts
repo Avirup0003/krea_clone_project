@@ -1,23 +1,35 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY!);
 
 export async function POST(req: Request) {
   try {
-    const { userId } = await auth();
-    if (!userId) return new NextResponse("Unauthorized", { status: 401 });
-
     const body = await req.json();
     const { prompt } = body;
 
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
+    const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json({ error: "Missing API Key in .env.local" }, { status: 500 });
+    }
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+    const result = await model.generateContent(prompt || "Tell me a joke.");
     
-    return NextResponse.json({ text: response.text() });
-  } catch (error) {
-    return new NextResponse("Internal Error", { status: 500 });
+    if (!result || !result.response) {
+      return NextResponse.json({ error: "Google returned an empty response." }, { status: 500 });
+    }
+
+    const text = result.response.text();
+    return NextResponse.json({ text: text });
+
+  } catch (error: any) {
+    console.error("=== GEMINI API CRASH ===");
+    console.error(error);
+    console.error("========================");
+    
+    return NextResponse.json({ 
+      error: error.message || "Unknown Gemini API Error. Check VS Code terminal." 
+    }, { status: 500 });
   }
 }

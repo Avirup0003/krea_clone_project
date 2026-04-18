@@ -1,101 +1,74 @@
 import { Handle, Position } from "reactflow";
-import { useEffect, useState } from "react";
 import { useStore } from "@/store/useStore";
-import { Video, Upload, Play } from "lucide-react";
+import { Video as VideoIcon, Upload } from "lucide-react";
+import { useRef } from "react";
 
 export default function VideoNode({ id, data }: { id: string; data: any }) {
   const updateNodeData = useStore((state) => state.updateNodeData);
-  const { nodeStates, runNode } = useStore();
-  const isRunning = nodeStates[id]?.isRunning;
-  const [uppy, setUppy] = useState<any>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const { Uppy } = require('@uppy/core');
-      const Dashboard = require('@uppy/dashboard');
-      const Transloadit = require('@uppy/transloadit');
-      const DragDrop = require('@uppy/drag-drop');
-
-      const uppyInstance = new Uppy({
-        autoProceed: true,
-        restrictions: {
-          allowedFileTypes: ['.mp4', '.mov', '.webm', '.avi'],
-          maxNumberOfFiles: 1,
-          maxFileSize: 100 * 1024 * 1024, // 100MB
-        },
-      })
-      .use(Transloadit, {
-        params: {
-          auth: { key: process.env.NEXT_PUBLIC_TRANSLOADIT_KEY },
-        },
-        waitForEncoding: true,
-        signature: process.env.NEXT_PUBLIC_TRANSLOADIT_SIGNATURE,
-      })
-      .use(DragDrop, { target: '#video-dropzone' })
-      .use(Dashboard, {
-        inline: true,
-        target: '#video-dropzone',
-        proudlyDisplayPoweredByUppy: false,
-        showLinkToFileUploadResult: false,
-        height: 200,
-      });
-
-      uppyInstance.on('transloadit:assembly-upload-complete', (result: any) => {
-        const url = result.results['file-to-mp4'][0]?.ssl_url || result.results['file'][0]?.ssl_url;
-        updateNodeData(id, { videoUrl: url });
-      });
-
-      setUppy(uppyInstance);
-
-      return () => uppyInstance.close();
+  // Safely handle the video file upload without plugin crashes
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const videoUrl = URL.createObjectURL(file);
+      // Added output: videoUrl so the next node can read it!
+      updateNodeData(id, { videoUrl, output: videoUrl });
     }
-  }, [id, updateNodeData]);
+  };
 
   return (
-    <div className={`w-[300px] h-[240px] rounded-krea-lg border-2 border-slate-700/70 bg-gradient-to-b from-slate-900/80 to-slate-950/80 backdrop-blur-sm shadow-krea-glow-lg p-krea-4 transition-all duration-300 hover:shadow-krea-glow ${isRunning ? 'running' : ''}`}>
-      <div className="flex items-center gap-krea-2 mb-krea-3">
-        <Video className="h-4 w-4 text-krea-400 drop-shadow-sm" />
-        <span className="font-semibold text-sm text-slate-200 tracking-tight">Upload Video</span>
-      </div>
-      <div id="video-dropzone" className="flex-1 rounded-krea border-2 border-dashed border-slate-600 hover:border-krea-400 transition-colors bg-slate-900/50 cursor-pointer group relative overflow-hidden">
-        {data.videoUrl ? (
-          <div className="w-full h-full flex flex-col items-center justify-center p-krea-3">
-            <video src={data.videoUrl} controls className="w-32 h-24 object-cover rounded-krea shadow-krea-glow mb-krea-2 bg-black" />
-            <div className="text-xs text-slate-300 truncate max-w-full px-1">
-              {data.videoUrl}
-            </div>
-            <button onClick={() => updateNodeData(id, { videoUrl: undefined })} className="mt-krea-1 text-xs text-slate-400 hover:text-slate-200 transition-colors">Replace</button>
+    <div className="w-[320px] bg-[#111111] border border-[#222222] rounded-2xl p-5 shadow-2xl">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="bg-[#1a1a1a] p-2 rounded-lg border border-[#333]">
+            <VideoIcon className="h-5 w-5 text-[#ec4899]" /> {/* Pink accent for videos */}
           </div>
-        ) : (
-          <>
-            <Upload className="h-8 w-8 text-slate-400 group-hover:text-krea-400 transition-colors mx-auto mb-krea-2" />
-            <div className="text-xs text-slate-400 group-hover:text-slate-200 transition-colors mb-krea-1">Drag video here or click to upload</div>
-            <div className="text-xs text-slate-500">MP4, MOV, WebM up to 100MB</div>
-          </>
+          <span className="font-semibold text-[15px] text-[#e5e5e5]">Upload Video</span>
+        </div>
+        
+        {/* Replace Button (Only shows if a video is uploaded) */}
+        {data.videoUrl && (
+          <button 
+            onClick={() => fileInputRef.current?.click()}
+            className="text-[12px] font-medium text-[#a1a1aa] hover:text-[#ec4899] transition-colors"
+          >
+            Replace
+          </button>
         )}
       </div>
-      <button
-        onClick={() => runNode(id)}
-        disabled={isRunning}
-        className="mt-krea-2 w-full px-krea-3 py-krea-2 bg-gradient-to-r from-krea-600 to-krea-500 text-white rounded-krea font-semibold text-xs uppercase tracking-wider hover:from-krea-500 hover:to-krea-400 shadow-krea-glow transition-all duration-200 hover:shadow-krea-glow-lg hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+
+      <div
+        className={`bg-[#0a0a0a] border border-[#333] rounded-xl overflow-hidden flex flex-col items-center justify-center cursor-pointer hover:border-[#ec4899] transition-colors relative group ${!data.videoUrl ? 'border-dashed p-8' : ''}`}
+        onClick={() => !data.videoUrl && fileInputRef.current?.click()}
       >
-        {isRunning ? (
-          <>
-            <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25" />
-              <path fill="currentColor" className="opacity-75" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
-            Processing...
-          </>
+        {data.videoUrl ? (
+          <video 
+            src={data.videoUrl} 
+            controls 
+            className="w-full h-40 object-cover bg-black"
+          />
         ) : (
           <>
-            <Play className="h-3 w-3" />
-            Run Node
+            <Upload className="h-6 w-6 text-[#737373] mb-3 group-hover:text-[#ec4899] transition-colors" />
+            <span className="text-sm text-[#a1a1aa] font-medium">Click to browse files</span>
+            <span className="text-[11px] text-[#555555] mt-1 uppercase tracking-widest">MP4, MOV, WEBM</span>
           </>
         )}
-      </button>
-      <Handle type="target" position={Position.Left} id="input" className="opacity-0 group-hover:opacity-100" />
-      <Handle type="source" position={Position.Right} id="output" className="opacity-0 group-hover:opacity-100" />
+        
+        {/* Hidden file input */}
+        <input
+          type="file"
+          ref={fileInputRef}
+          className="hidden"
+          accept="video/mp4, video/mov, video/webm"
+          onChange={handleFileChange}
+        />
+      </div>
+
+      {/* Connection Handles */}
+      <Handle type="target" position={Position.Left} id="input" className="w-3 h-3 bg-[#ec4899] border-2 border-[#111111]" />
+      <Handle type="source" position={Position.Right} id="output" className="w-3 h-3 bg-[#ec4899] border-2 border-[#111111]" />
     </div>
   );
 }
