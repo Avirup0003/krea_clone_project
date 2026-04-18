@@ -1,7 +1,7 @@
 import Header from "@/components/Header";
 import LeftSidebar from "@/components/LeftSidebar";
 import WorkflowCanvas from "@/components/WorkflowCanvas";
-import HistorySidebar from "@/components/HistorySidebar";
+import RightSidebar from "@/components/RightSidebar";
 import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 
@@ -15,7 +15,7 @@ export default async function Home() {
       <div className="flex flex-1 overflow-hidden relative">
         <LeftSidebar />
         <WorkflowCanvas />
-        <HistorySidebar />
+        <RightSidebar />
       </div>
     </div>
   );
