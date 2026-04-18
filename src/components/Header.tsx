@@ -1,13 +1,13 @@
 "use client";
 import { UserButton } from "@clerk/nextjs";
-import { Workflow, Save, Sparkles } from "lucide-react";
+import { Workflow, Save, Download, Trash2, Upload } from "lucide-react";
 import { useStore } from "@/store/useStore";
-import { useState, useEffect } from "react";
-import confetti from "canvas-confetti"; // Assume installed or use CSS
+import { useState, useRef } from "react";
 
 export default function Header() {
-  const { nodes, edges } = useStore();
+  const { nodes, edges, exportWorkflow, clearCanvas, importWorkflow } = useStore();
   const [isSaving, setIsSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSave = async () => {
     try {
@@ -23,56 +23,101 @@ export default function Header() {
       });
       
       if (response.ok) {
-        // Confetti celebration
-        confetti({
-          particleCount: 100,
-          spread: 70,
-          origin: { y: 0.6 },
-          colors: ['#2563eb', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b']
-        });
-        // CSS alternative if no lib: trigger class toggle
+        alert("Workflow saved successfully!");
       }
     } catch (error) {
-      console.error("Save failed");
+      alert("Failed to save workflow.");
     } finally {
       setIsSaving(false);
     }
   };
 
+  const handleExport = () => {
+    const jsonString = exportWorkflow();
+    const blob = new Blob([jsonString], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "nextflow-export.json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const content = event.target?.result as string;
+        importWorkflow(content);
+      };
+      reader.readAsText(file);
+    }
+    // Reset input so the same file can be uploaded again if needed
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
   return (
-    <header className="h-16 border-b border-border/30 bg-gradient-to-r from-black via-[#0a0a0a]/80 to-[#1a1a1a]/80 backdrop-blur-2xl flex items-center justify-between px-6 z-50 shadow-2xl shadow-black/60 relative overflow-hidden">
-      {/* Background particles */}
-      <div className="absolute inset-0 opacity-20">
-        <div className="absolute top-4 left-4 w-2 h-2 bg-gradient-to-r from-cyan to-lime rounded-full animate-particle-float delay-100"></div>
-        <div className="absolute top-8 right-8 w-1.5 h-1.5 bg-gradient-to-r from-pink to-orange rounded-full animate-particle-float delay-500"></div>
-        <div className="absolute bottom-4 left-1/4 w-2 h-2 bg-gradient-to-r from-purple to-pink rounded-full animate-particle-float delay-1000"></div>
-      </div>
-      
-      <div className="flex items-center gap-3 relative z-10">
-        <div className="group p-3 bg-gradient-to-br from-primary via-purple to-pink rounded-2xl shadow-neon-blue hover:shadow-glow-rainbow hover:animate-bounce-glow transition-all duration-500 hover:rotate-180 hover:scale-110">
-          <Workflow className="h-6 w-6 text-white drop-shadow-lg group-hover:animate-spin-slow" />
+    <header className="h-14 border-b border-border bg-[#000000] flex items-center justify-between px-6 z-50 relative">
+      <div className="flex items-center gap-3">
+        <div className="bg-[#2563eb] p-1.5 rounded-lg">
+            <Workflow className="h-4 w-4 text-white" />
         </div>
-        <span className="text-2xl font-black rainbow-text animate-float drop-shadow-2xl tracking-tight">Next<span className="text-transparent bg-gradient-to-r from-green to-lime bg-clip-text animate-wave">Flow</span></span>
+        <span className="font-semibold text-[15px] text-white">Node Editor</span>
       </div>
       
-      <div className="flex items-center gap-4 relative z-10">
+      <div className="flex items-center gap-3">
+        {/* Hidden file input for importing JSON */}
+        <input 
+          type="file" 
+          accept=".json" 
+          ref={fileInputRef} 
+          onChange={handleFileChange} 
+          className="hidden" 
+        />
+
+        <div className="flex items-center bg-[#1a1a1a] rounded-lg p-1 border border-[#27272a]">
+          <button 
+            onClick={handleImportClick}
+            title="Import JSON"
+            className="p-1.5 text-[#a1a1aa] hover:text-white hover:bg-[#2a2a2a] rounded-md transition-colors"
+          >
+            <Upload className="h-4 w-4" />
+          </button>
+          <button 
+            onClick={handleExport}
+            title="Export JSON"
+            className="p-1.5 text-[#a1a1aa] hover:text-white hover:bg-[#2a2a2a] rounded-md transition-colors"
+          >
+            <Download className="h-4 w-4" />
+          </button>
+          <div className="w-[1px] h-4 bg-[#27272a] mx-1"></div>
+          <button 
+            onClick={clearCanvas}
+            title="Clear Canvas"
+            className="p-1.5 text-[#a1a1aa] hover:text-[#ef4444] hover:bg-[#2a2a2a] rounded-md transition-colors"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+
         <button 
           onClick={handleSave}
           disabled={isSaving}
-          className="group relative flex items-center gap-2 bg-gradient-to-r from-secondary via-primary/20 to-purple hover:from-primary/90 hover:to-pink/90 border border-primary/30 hover:border-pink/50 text-foreground px-8 py-3 rounded-3xl text-sm font-black uppercase tracking-widest shadow-lg hover:shadow-neon-purple hover:shadow-glow-rainbow hover:-translate-y-2 hover:animate-bounce-glow transition-all duration-500 overflow-hidden button-shimmer disabled:opacity-50 disabled:cursor-not-allowed hover:tilt-3d"
+          className="flex items-center gap-2 bg-[#1a1a1a] hover:bg-[#2a2a2a] border border-[#27272a] text-[#e5e5e5] px-4 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ml-2"
         >
-          <Sparkles className="h-5 w-5 group-hover:animate-spin-slow" />
-          <span>{isSaving ? "Saving..." : "Save Magic"}</span>
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 -translate-x-[100%] group-hover:translate-x-[100%] transition-transform duration-1000 opacity-0 group-hover:opacity-100" />
+          <Save className="h-4 w-4" />
+          {isSaving ? "Saving..." : "Save"}
         </button>
-        <div className="ring-4 ring-primary/30 hover:ring-[6px] hover:ring-gradient-to-r from-primary via-purple to-pink hover:shadow-neon-blue transition-all duration-300 rounded-full p-1">
-          <UserButton 
-            appearance={{ 
-              elements: { 
-                userButtonAvatarBox: "h-12 w-12 ring-2 ring-white/20 hover:ring-primary/50 shadow-2xl hover:shadow-neon-pink hover:animate-pulse" 
-              } 
-            }} 
-          />
+        
+        <div className="ml-2">
+          <UserButton appearance={{ elements: { userButtonAvatarBox: "h-8 w-8" } }} />
         </div>
       </div>
     </header>

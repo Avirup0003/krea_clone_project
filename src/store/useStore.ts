@@ -15,7 +15,6 @@ type NodeData = {
   prompt?: string;
   model?: string;
   
-  // Update these two lines to allow null
   result?: string | null;
   error?: string | null; 
   
@@ -60,6 +59,8 @@ type AppState = {
   saveWorkflow: (name: string) => Promise<void>;
   loadWorkflow: (id: string) => void;
   exportWorkflow: () => string;
+  clearCanvas: () => void;
+  importWorkflow: (jsonString: string) => void;
   
   runNode: (nodeId: string) => Promise<void>;
   
@@ -177,6 +178,21 @@ export const useStore = create<AppState>((set, get) => ({
     const name = workflows.find(w => w.id === currentWorkflowId)?.name || 'Untitled';
     return JSON.stringify({ name, nodes, edges }, null, 2);
   },
+
+  clearCanvas: () => {
+    set({ nodes: [], edges: [], currentWorkflowId: undefined });
+  },
+  
+  importWorkflow: (jsonString: string) => {
+    try {
+      const data = JSON.parse(jsonString);
+      if (data.nodes && data.edges) {
+        set({ nodes: data.nodes, edges: data.edges, currentWorkflowId: undefined });
+      }
+    } catch (error) {
+      console.error("Failed to parse workflow JSON", error);
+    }
+  },
   
   runNode: async (nodeId: string) => {
     const node = get().nodes.find(n => n.id === nodeId);
@@ -218,17 +234,13 @@ export const useStore = create<AppState>((set, get) => ({
   
   getNodeInputs: (nodeId: string) => {
     const { nodes, edges } = get();
-    // Find all edges pointing IN to this node
     const incoming = edges.filter((e: Edge) => e.target === nodeId);
     
     return incoming.map((e: Edge) => {
-      // Find the node that the edge is coming FROM
       const srcNode = nodes.find((n: Node<NodeData>) => n.id === e.source);
       
       if (!srcNode) return null;
 
-      // Smarter Fallback: If 'output' isn't explicitly set, smartly grab 
-      // whatever media or text the source node is currently holding.
       return srcNode.data.output || 
              srcNode.data.imageUrl || 
              srcNode.data.videoUrl || 
